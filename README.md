@@ -1,7 +1,7 @@
 # Cloudflare DDNS updater with Bash and Crontab
 ## About
 - Cloudflare DDNS updater with Bash.
-- Detects host IP and updates cloudflare A record if it is different (supports CDN).
+- Detects host IP and updates cloudflare A record if it is different (supports Cloudflare Proxy).
 - API Token is only supported for security reasons.
 
 ## Requirements
