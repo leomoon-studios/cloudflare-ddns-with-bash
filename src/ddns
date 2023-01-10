@@ -1,14 +1,21 @@
 #!/bin/bash
 
-if ! which jq >/dev/null 2>&1; then echo -e "\033[31m [x] Please install jq!\e[39m"; exit 1; fi
-if ! which curl >/dev/null 2>&1; then echo -e "\033[31m [x] Please install curl!\e[39m"; exit 1; fi
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[0;33m'
+plain='\033[0m'
+
+version="1.0.1"
+
+if ! which jq >/dev/null 2>&1; then echo -e "${red} [x] Please install jq!${plain}"; exit 1; fi
+if ! which curl >/dev/null 2>&1; then echo -e "${red} [x] Please install curl!${plain}"; exit 1; fi
 
 usage() {
-    echo -e "\033[32m [i] Usage:\e[39m"
-    echo -e "     $0 -z <zone> -a <a-record> -t <token>\e[39m\n";
-    echo -e "\033[32m [i] Example:\e[39m"
-    echo -e "     $0 -z domain.com -a test.domain.com -t 5SPAFH7MF6Xgqe2wDoFsjNB5ZngSvxbAZ25AHart\e[39m\n";
-    echo -e "\033[32m [i] Parameters:\e[39m"
+    echo -e "${green} [i] Usage:${plain}"
+    echo -e "     $0 -z <zone> -a <a-record> -t <token>${plain}\n";
+    echo -e "${green} [i] Example:${plain}"
+    echo -e "     $0 -z domain.com -a test.domain.com -t 5SPAFH7MF6Xgqe2wDoFsjNB5ZngSvxbAZ25AHart${plain}\n";
+    echo -e "${green} [i] Parameters:${plain}"
     echo -e "     -z|--zone       Zone name."
     echo -e "     -a|--a-record   A Record to edit (FQDN)."
     echo -e "     -t|--token      Cloudflare API Token (not Global API Key)."
@@ -48,7 +55,7 @@ done
 set -- "${POSITIONAL[@]}" #restore positional parameters
 
 if [ -z "$z" ] || [ -z "$a" ] || [ -z "$t" ]; then #check required parameters
-    echo -e "\033[31m [x] Must define these parameters: -z -a -e -k\e[39m\n"
+    echo -e "${red} [x] Must define these parameters: -z -a -e -k${plain}\n"
     usage
 fi
 
@@ -59,30 +66,29 @@ cf_check() {
     zone=$1
     a_record=$2
     cloudflare_token=$3
-    # Get the current external IP address
+    # get the host external ip
     ip=$(curl -s --retry 5 --retry-all-errors -X GET $ip_check_domain)
     # get the zone id for the requested zone
     zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$zone&status=active" \
     -H "Authorization: Bearer $cloudflare_token" \
     -H "Content-Type: application/json" | jq -r '{"result"}[] | .[0] | .id')
+    # get current ip of the A record
     a_record_ip=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?name=$a_record&type=A" \
     -H "Authorization: Bearer $cloudflare_token" \
     -H "Content-Type: application/json" | jq -r '{"result"}[] | .[0] | .content')
 
-    echo -e "\e[33m [+] checking $a_record\e[39m"
-    # echo "     Zone ID for $zone is $zone_id"
+    echo -e "${yellow} [+] checking $a_record${plain}"
+    echo "     Zone ID for $zone is $zone_id"
     echo -e "     $ip\t>\tlocalhost"
+    # compare
     if [[ "$a_record_ip" == "$ip" ]]; then
         echo -e "     $a_record_ip\t>\t$a_record"
     else
         echo -e "     $a_record_ip\t>\t$a_record! Changing..."
-        # get the dns record id
+        # get id of the A record
         a_record_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$a_record" \
         -H "Authorization: Bearer $cloudflare_token" \
         -H "Content-Type: application/json" | jq -r '{"result"}[] | .[0] | .id')
-
-        # echo "     DNS_record_id for $a_record is $a_record_id"
-
         # update the record
         curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$a_record_id" \
         -H "Authorization: Bearer $cloudflare_token" \
